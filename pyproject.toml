@@ -11,5 +11,11 @@ requires-python = ">=3.9"
 license = { text = "MIT" }
 dependencies = []
 
+[project.optional-dependencies]
+test = ["pytest>=7"]
+
 [tool.setuptools]
 packages = ["invar"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

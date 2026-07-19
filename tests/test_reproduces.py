@@ -129,8 +129,8 @@ def test_serialize_roundtrip_matches_committed(receipts):
 
 
 @pytest.mark.skipif(
-    not os.environ.get("INVAR_SROIE"),
-    reason="set INVAR_SROIE=<ICDAR-2019-SROIE clone> to byte-verify all 535",
+    not os.environ.get("WOBBLY_SROIE"),
+    reason="set WOBBLY_SROIE=<ICDAR-2019-SROIE clone> to byte-verify all 535",
 )
 def test_full_slice_regenerable_from_upstream():
-    assert build_receipts.verify(os.environ["INVAR_SROIE"]) is True
+    assert build_receipts.verify(os.environ["WOBBLY_SROIE"]) is True

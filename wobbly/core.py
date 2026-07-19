@@ -1,4 +1,4 @@
-"""invar — metamorphic testing for AI outputs. No answer key required.
+"""wobbly — metamorphic testing for AI outputs. No answer key required.
 
 The idea: you often cannot check an AI output against a "correct" answer,
 because you don't have one. But you almost always know things that must stay
@@ -8,7 +8,7 @@ true when the INPUT changes in a known way:
     add an irrelevant sentence   -> the risk score must not change
     double every quantity        -> the total must double
 
-`invar` takes your system (input -> output), a base input, and a list of such
+`wobbly` takes your system (input -> output), a base input, and a list of such
 relations. For each relation it transforms the input, runs the system on both,
 and checks that the asserted relationship between the two outputs holds. When it
 doesn't, you've found a bug — without ever knowing the right answer.
@@ -75,7 +75,7 @@ def check(
 ) -> Report:
     """Run `system` against each relation up to `samples` times.
 
-    `system` is your AI/extractor: input -> output. invar never learns the
+    `system` is your AI/extractor: input -> output. wobbly never learns the
     "right" output; it only checks the relations you assert.
     """
     report = Report(subject=subject)

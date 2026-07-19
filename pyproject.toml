@@ -3,7 +3,7 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "invar"
+name = "wobbly"
 version = "0.1.0"
 description = "Metamorphic testing for AI outputs — find wrong answers without an answer key"
 readme = "README.md"
@@ -15,7 +15,7 @@ dependencies = []
 test = ["pytest>=7"]
 
 [tool.setuptools]
-packages = ["invar"]
+packages = ["wobbly"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

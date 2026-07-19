@@ -1,8 +1,8 @@
-# CLAUDE.md — invar receipts demo
+# CLAUDE.md — wobbly receipts demo
 
 ## CORE (load-bearing — read before changing anything)
 
-**What this repo is.** The proof-on-real-data demo for `invar`, a metamorphic
+**What this repo is.** The proof-on-real-data demo for `wobbly`, a metamorphic
 testing library. It exists to back a public writeup (Medium/LinkedIn) and a
 Show HN launch. The repo IS the receipt: `git clone && python scripts/run_blind.py`
 must reproduce the headline numbers offline with no API key.
@@ -17,7 +17,7 @@ with zero labels.
 
 **The two-stage design is non-negotiable.** It is the entire credibility of the
 piece and must not be collapsed:
-- **Stage 1 (BLIND):** run invar over all receipts. Ground-truth labels are
+- **Stage 1 (BLIND):** run wobbly over all receipts. Ground-truth labels are
   NEVER read. Produces a set of flagged receipts.
 - **Stage 2 (AUDIT):** only now open `true_total`, purely to score whether the
   blind flags corresponded to real errors.
@@ -100,14 +100,14 @@ well below 62%. Report whatever it honestly comes out to.
 ## Repo layout
 
 ```
-invar/core.py        check(), Relation, Report, Counterexample — the engine
-invar/relations.py   the extraction relation pack (transforms + assertions)
-invar/extractor.py   the system under test (stand-in for an LLM extractor)
+wobbly/core.py        check(), Relation, Report, Counterexample — the engine
+wobbly/relations.py   the extraction relation pack (transforms + assertions)
+wobbly/extractor.py   the system under test (stand-in for an LLM extractor)
 scripts/run_blind.py the two-stage blind + audit run
 data/receipts.json   frozen 120-receipt slice
 ```
 
-`invar/core.py` is generic and domain-free — keep it that way. Domain knowledge
+`wobbly/core.py` is generic and domain-free — keep it that way. Domain knowledge
 belongs in `relations.py`. The relation pack is the intended moat ("taste is the
 point"); the engine is deliberately small.
 

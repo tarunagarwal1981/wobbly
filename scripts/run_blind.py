@@ -1,7 +1,7 @@
 """Blind metamorphic run over real receipts, then ground-truth validation.
 
-Stage 1 (BLIND): for each receipt, run invar with the extraction relation pack.
-                 NO ground-truth label is read here. invar flags receipts where
+Stage 1 (BLIND): for each receipt, run wobbly with the extraction relation pack.
+                 NO ground-truth label is read here. wobbly flags receipts where
                  the extractor contradicts itself under order/footer/currency
                  changes.
 
@@ -18,7 +18,7 @@ generalization number. We report DEV, HELD-OUT and COMBINED separately.
 import json, os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from invar import check, default_pack, extract_total
+from wobbly import check, default_pack, extract_total
 
 # Receipts 0..DEV_N-1 are the ones the extractor/relation rules were iterated
 # against. Everything after is held-out (never inspected during rule dev).
@@ -30,7 +30,7 @@ def system(receipt: dict):
 
 
 def stage1_blind(receipts):
-    """Return the receipts invar flags — WITHOUT reading any label."""
+    """Return the receipts wobbly flags — WITHOUT reading any label."""
     flagged = []
     for r in receipts:
         rep = check(system, r, default_pack(), samples=8, subject=r["id"])

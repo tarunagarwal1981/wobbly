@@ -1,4 +1,4 @@
-"""invar — metamorphic testing for AI outputs. No answer key required."""
+"""wobbly — metamorphic testing for AI outputs. No answer key required."""
 from .core import check, Relation, Report, Counterexample
 from .relations import (
     default_pack,

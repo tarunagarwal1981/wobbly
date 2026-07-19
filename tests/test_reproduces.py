@@ -15,8 +15,8 @@ import pytest
 
 import build_receipts
 import run_blind
-from invar import extract_total
-from invar.relations import reorder_lines
+from wobbly import extract_total
+from wobbly.relations import reorder_lines
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FIXTURE = os.path.join(ROOT, "tests", "fixtures", "sroie")

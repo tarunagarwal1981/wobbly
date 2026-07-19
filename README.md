@@ -1,4 +1,4 @@
-# invar — finding wrong AI outputs without the right answers
+# wobbly — finding wrong AI outputs without the right answers
 
 Run an AI extractor over 120 real scanned receipts. Catch its mistakes **without
 ever looking at the correct totals.**
@@ -34,7 +34,7 @@ returns two different totals for what is plainly the same receipt, it just
 caught itself.** No answer key involved.
 
 ```python
-from invar import check, default_pack, extract_total
+from wobbly import check, default_pack, extract_total
 
 report = check(
     system=lambda r: extract_total(r["lines"]),
@@ -48,7 +48,7 @@ print(report.summary())
 
 Two stages, deliberately separated:
 
-1. **BLIND** — invar runs over every receipt. Ground-truth labels are never read.
+1. **BLIND** — wobbly runs over every receipt. Ground-truth labels are never read.
    It outputs a set of flagged receipts.
 2. **AUDIT** — only now are the labels opened, purely to measure whether those
    blind flags were really wrong.
@@ -78,9 +78,9 @@ fixed before publication. Reported numbers will be whatever the honest run gives
 ## Layout
 
 ```
-invar/core.py        the engine: check(), Relation, Report
-invar/relations.py   extraction relation pack (transforms + assertions)
-invar/extractor.py   the system under test
+wobbly/core.py        the engine: check(), Relation, Report
+wobbly/relations.py   extraction relation pack (transforms + assertions)
+wobbly/extractor.py   the system under test
 scripts/run_blind.py two-stage blind + audit
 data/receipts.json   frozen slice of real receipts
 ```

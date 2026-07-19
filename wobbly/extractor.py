@@ -14,7 +14,7 @@ That is a reasonable, common heuristic — yet it still hides a subtle failure: 
 messy real OCR where a cue and its value land in *separate columns* (label run
 here, amount run there), the value the extractor pairs with "TOTAL" can depend on
 the ORDER the lines arrive in. A correct extractor's total must not depend on
-line order. That residual order-sensitivity is the invariant `invar` tests — and
+line order. That residual order-sensitivity is the invariant `wobbly` tests — and
 catches (e.g. receipts 009, 026) with no answer key.
 
 Nothing here reads the ground-truth label.

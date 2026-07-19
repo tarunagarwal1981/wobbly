@@ -24,6 +24,19 @@ the system on the original and on each variant. If two "obviously equivalent"
 inputs produce different outputs, the system just contradicted itself. That's a
 bug, found without knowing the right answer.
 
+## Limitations
+
+- **High precision, low recall.** On the receipt dataset below it flagged ~2% of
+  receipts and caught ~8% of all extraction errors. It does not find most bugs;
+  it finds bugs it can find *cheaply and with no labels*, and what it flags is
+  strongly enriched for real errors. Treat it as a spot-check, not a test suite.
+- **One dataset.** The evidence below is receipts (ICDAR-SROIE). The technique is
+  general; the numbers are not a benchmark across domains.
+- **The system under test here is a heuristic**, not a live LLM. The relations
+  are model-agnostic, but the shipped demo does not call an API.
+- **Small flag counts** mean the per-cohort statistics have real sampling noise;
+  see the dev/held-out split in the experiment below.
+
 ## Quickstart
 
 ```python
@@ -199,19 +212,6 @@ matters when the system is a paid API call. (On the built-in pack over the 535
 receipts, marking the two deterministic relations cut total system calls by
 ~59%.) This is offline / CI / sampling work — run it over a batch or a sample of
 production traffic, not as a wrapper on every live request.
-
-## Limitations
-
-- **High precision, low recall.** On the receipt dataset it flagged ~2% of
-  receipts and caught ~8% of all extraction errors. It does not find most bugs;
-  it finds bugs it can find *cheaply and with no labels*, and what it flags is
-  strongly enriched for real errors. Treat it as a spot-check, not a test suite.
-- **One dataset.** The evidence below is receipts (ICDAR-SROIE). The technique is
-  general; the numbers are not a benchmark across domains.
-- **The system under test here is a heuristic**, not a live LLM. The relations
-  are model-agnostic, but the shipped demo does not call an API.
-- **Small flag counts** mean the per-cohort statistics have real sampling noise;
-  see the dev/held-out split below.
 
 ## The experiment
 

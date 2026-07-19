@@ -3,11 +3,11 @@
 Metamorphic testing for AI outputs — find wrong answers without an answer key.
 
 ```bash
-pip install wobbly          # not yet on PyPI; until then:
-pip install git+https://github.com/tarunagarwal1981/wobbly
+pip install wobbly
 ```
 
-Python ≥ 3.9, no dependencies.
+Python ≥ 3.9, no dependencies. From source:
+`pip install git+https://github.com/tarunagarwal1981/wobbly`.
 
 ## The problem
 

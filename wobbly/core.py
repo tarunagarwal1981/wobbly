@@ -27,10 +27,25 @@ Assertion = Callable[[Any, Any], bool]
 
 @dataclass(frozen=True)
 class Relation:
-    """A metamorphic relation: transform the input, assert on the two outputs."""
+    """A metamorphic relation: transform the input, assert on the two outputs.
+
+    INPUT CONTRACT: `transform` receives the same `base_input` you pass to
+    `check`, and must return a value of that same shape — because `check` feeds
+    the transformed value straight back into your `system`. So `base_input`,
+    `system`, and every `transform` must agree on one input type. The built-in
+    pack operates on a receipt dict `{"lines": [...]}`, so a `lines -> total`
+    extractor is adapted with `lambda r: extract_total(r["lines"])`.
+
+    Set `deterministic=True` if the transform always produces the same output for
+    a given input (e.g. appending a fixed footer). `check` then runs it once
+    instead of `samples` times — no coverage is lost, and if `system` is a paid
+    API call this avoids paying for identical repeats. Leave it False for
+    randomized transforms (e.g. a shuffle), which need multiple samples.
+    """
     name: str
     transform: Transform
     assertion: Assertion
+    deterministic: bool = False
 
 
 @dataclass(frozen=True)
@@ -77,6 +92,11 @@ def check(
 
     `system` is your AI/extractor: input -> output. wobbly never learns the
     "right" output; it only checks the relations you assert.
+
+    `samples` applies to randomized relations; a relation marked
+    `deterministic=True` is run once regardless (see `Relation`). All of
+    `base_input`, `system`, and each relation's transform must accept the same
+    input shape.
     """
     report = Report(subject=subject)
     try:
@@ -86,7 +106,8 @@ def check(
         return report
 
     for rel in relations:
-        for _ in range(samples):
+        n = 1 if rel.deterministic else samples
+        for _ in range(n):
             report.trials += 1
             try:
                 mutated = rel.transform(base_input)

@@ -1,0 +1,99 @@
+Metadata-Version: 2.4
+Name: wobbly
+Version: 0.1.0
+Summary: Metamorphic testing for AI outputs — find wrong answers without an answer key
+License: MIT
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+Provides-Extra: test
+Requires-Dist: pytest>=7; extra == "test"
+
+# wobbly — finding wrong AI outputs without the right answers
+
+Run an AI extractor over 120 real scanned receipts. Catch its mistakes **without
+ever looking at the correct totals.**
+
+```bash
+python scripts/run_blind.py
+```
+
+No API key. No network. Fully reproducible.
+
+## The problem
+
+You point an LLM at 10,000 documents and ask it to pull out a number. It returns
+10,000 numbers. Some are wrong. You cannot check them by hand — checking by hand
+is the thing you were trying to avoid. So the errors ship silently.
+
+The standard answer is "build a labelled test set." That costs humans, weeks, and
+it only covers the documents you already labelled.
+
+## The idea
+
+You don't need the right answer to catch a contradiction. You only need to know
+what *shouldn't* change the answer.
+
+A receipt's total must not change if you:
+
+- shuffle the order of the OCR lines
+- append an irrelevant `THANK YOU / COME AGAIN` footer
+- strip the `RM` / `$` currency tokens
+
+So run the extractor on the original and on each harmless variant. **If it
+returns two different totals for what is plainly the same receipt, it just
+caught itself.** No answer key involved.
+
+```python
+from wobbly import check, default_pack, extract_total
+
+report = check(
+    system=lambda r: extract_total(r["lines"]),
+    base_input=receipt,
+    relations=default_pack(),
+)
+print(report.summary())
+```
+
+## The experiment
+
+Two stages, deliberately separated:
+
+1. **BLIND** — wobbly runs over every receipt. Ground-truth labels are never read.
+   It outputs a set of flagged receipts.
+2. **AUDIT** — only now are the labels opened, purely to measure whether those
+   blind flags were really wrong.
+
+If flagged receipts are meaningfully more likely to be wrong than unflagged ones,
+the method works: you found bad outputs with no labels.
+
+## The data
+
+[ICDAR-2019-SROIE](https://github.com/zzzDavid/ICDAR-2019-SROIE) — real scanned
+receipts with OCR text and ground-truth totals. A frozen 120-receipt slice ships
+in `data/receipts.json` so this runs offline.
+
+Why it's hard: **~13 dollar-shaped numbers per receipt** (up to 49), exactly one
+of which is the true total. Plus traps — `SUBTOTAL`, `TOTAL QTY`, `TOTAL GST`,
+`TOTAL SALES (EXCLUDING GST)` next to `(INCLUSIVE OF GST)` — and the total is
+often reprinted two to four times.
+
+## Status
+
+Working; numbers are being tightened. Two known defects are documented honestly
+in `CLAUDE.md`: the demo extractor is currently weaker than a real shipped system,
+and the reorder transform is too aggressive (it shuffles all lines, breaking
+adjacency that a correct extractor may legitimately rely on). Both are being
+fixed before publication. Reported numbers will be whatever the honest run gives.
+
+## Layout
+
+```
+wobbly/core.py        the engine: check(), Relation, Report
+wobbly/relations.py   extraction relation pack (transforms + assertions)
+wobbly/extractor.py   the system under test
+scripts/run_blind.py two-stage blind + audit
+data/receipts.json   frozen slice of real receipts
+```
+
+The engine is deliberately small and domain-free. The interesting part is the
+relation pack — knowing *which* invariants actually catch real production bugs.

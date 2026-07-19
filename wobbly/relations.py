@@ -189,6 +189,7 @@ def total_footer_invariant() -> Relation:
         name="irrelevant footer => total unchanged",
         transform=inject_footer(),
         assertion=unchanged(),
+        deterministic=True,   # appends a fixed footer — same output every time
     )
 
 
@@ -197,6 +198,7 @@ def total_currency_invariant() -> Relation:
         name="currency normalization => total unchanged",
         transform=normalize_currency(),
         assertion=unchanged(),
+        deterministic=True,   # deterministic string substitution
     )
 
 

@@ -5,6 +5,9 @@ from .relations import (
     total_reorder_invariant,
     total_footer_invariant,
     total_currency_invariant,
+    reorder_lines,
+    inject_footer,
+    normalize_currency,
     unchanged,
     scales_by,
 )
@@ -19,6 +22,10 @@ __all__ = [
     "total_reorder_invariant",
     "total_footer_invariant",
     "total_currency_invariant",
+    # transforms — building blocks for composing your own relations
+    "reorder_lines",
+    "inject_footer",
+    "normalize_currency",
     "unchanged",
     "scales_by",
     "extract_total",

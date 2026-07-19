@@ -78,15 +78,20 @@ same receipt. No correct total was needed to know one of those is wrong.
 
 ## Core concepts
 
-**`Relation(name, transform, assertion)`** — a metamorphic relation. `transform`
-maps an input to a modified input whose effect on the output is known;
-`assertion(before, after)` decides whether the two outputs are consistent.
+**`Relation(name, transform, assertion, deterministic=False)`** — a metamorphic
+relation. `transform` maps an input to a modified input whose effect on the
+output is known; `assertion(before, after)` decides whether the two outputs are
+consistent. Pass `deterministic=True` when the transform always produces the
+same output for a given input (see the cost note below).
 
 **`check(system, base_input, relations, samples=20, subject="")` → `Report`** —
 runs `system` (any `input -> output` callable) on `base_input`, then on each
-relation's transformed input, and checks the assertion holds. `samples` is the
-number of times each relation is tried (relevant only for randomized
-transforms; a deterministic transform gives the same result every sample).
+relation's transformed input, and checks the assertion holds. **Input contract:**
+`base_input`, `system`, and every relation's `transform` must accept the same
+input shape — `check` feeds each transformed input straight back into `system`.
+`samples` is how many times a *randomized* relation is tried; a relation marked
+`deterministic=True` runs once regardless (repeating it would only re-run your
+system on identical input).
 
 **`Report`** — the result:
 
@@ -146,6 +151,10 @@ Assertions are just `(before, after) -> bool`. `unchanged()` requires equality;
 `scales_by(factor)` requires the output to scale by a known factor (e.g. double
 every quantity, expect double the total). Write your own for anything else.
 
+If your transform always produces the same output for a given input (a fixed
+footer, a currency strip), pass `deterministic=True` to `Relation` so `check`
+runs it once instead of `samples` times — see [Cost](#cost).
+
 ## Built-in relation pack
 
 A ready-made pack for a lines-in / scalar-out extractor (a receipt total, an
@@ -160,9 +169,10 @@ invoice amount, a count). Import the assemblers from `wobbly`:
 | `unchanged()` | assertion | `before == after` (None-safe) |
 | `scales_by(factor, tol=1e-6)` | assertion | `after == before * factor` |
 
-The transforms these wrap (`reorder_lines`, `inject_footer`,
-`normalize_currency`) live in `wobbly.relations` if you want to reuse them
-directly. They operate on a `{"lines": [...]}` dict.
+The transforms these wrap — `reorder_lines(seed_offset=0)`,
+`inject_footer(text=...)`, `normalize_currency()` — are exported at top level
+too, so you can compose them into your own relations. They operate on a
+`{"lines": [...]}` dict.
 
 ```python
 from wobbly import check, default_pack, extract_total
@@ -170,7 +180,7 @@ from wobbly import check, default_pack, extract_total
 receipt = {"lines": ["MINIMART SDN BHD", "Milk        5.00", "Bread       2.50",
                      "TOTAL       7.50", "CASH       10.00", "CHANGE      2.50"]}
 report = check(lambda r: extract_total(r["lines"]), receipt, default_pack())
-print(report.summary())        # OK — 60 trials, no contradiction found
+print(report.summary())        # OK — 22 trials, no contradiction found
 ```
 
 `extract_total(lines)` is the demo system under test — a heuristic receipt-total
@@ -181,10 +191,14 @@ correctness — see the experiment for real catches on messier receipts.)
 
 ## Cost
 
-A pack of N relations calls your system **N + 1 times** per input: once for the
-base output, once per relation (more if `samples > 1` for a randomized
-transform). This is offline / CI / sampling work — run it over a batch or a
-sample of production traffic, not as a wrapper on every live request.
+Per input, `check` calls your system once for the base output, then **once for
+each `deterministic` relation** and **up to `samples` times for each randomized
+relation**. Deterministic transforms (a fixed footer, currency stripping) are
+run once — `check` will not pay your system to re-process identical input, which
+matters when the system is a paid API call. (On the built-in pack over the 535
+receipts, marking the two deterministic relations cut total system calls by
+~59%.) This is offline / CI / sampling work — run it over a batch or a sample of
+production traffic, not as a wrapper on every live request.
 
 ## Limitations
 

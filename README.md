@@ -2,6 +2,8 @@
 
 Metamorphic testing for AI outputs — find wrong answers without an answer key.
 
+**[Read the writeup →](https://medium.com/towards-artificial-intelligence/your-llm-extracted-10-000-numbers-which-ones-are-wrong-7a5d54050dd3)** — the full experiment on 535 real receipts.
+
 ```bash
 pip install wobbly
 ```
@@ -231,6 +233,9 @@ extraction rules were tuned on the first 120 receipts (DEV); the remaining 415
 On held-out data, receipts wobbly flagged were **2.7× more likely to be wrong**
 than receipts it didn't — with zero labels used to decide the flags. The 15-point
 DEV→HELD-OUT accuracy drop is the real generalization gap, reported openly.
+
+Full writeup, including the relation-design mistakes that produced 68 false
+flags: [Your LLM Extracted 10,000 Numbers. Which Ones Are Wrong?](https://medium.com/towards-artificial-intelligence/your-llm-extracted-10-000-numbers-which-ones-are-wrong-7a5d54050dd3)
 
 Reproduce it (offline, no API key):
 

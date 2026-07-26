@@ -1,0 +1,36 @@
+{
+  "name": "@tarunagarwal1981/wobbly",
+  "version": "0.0.1",
+  "description": "Metamorphic testing for AI outputs — find wrong answers without an answer key. (Python today: pip install wobbly)",
+  "license": "MIT",
+  "author": "Tarun Agarwal",
+  "homepage": "https://github.com/tarunagarwal1981/wobbly",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tarunagarwal1981/wobbly.git"
+  },
+  "keywords": [
+    "ai",
+    "llm",
+    "metamorphic-testing",
+    "testing",
+    "verification",
+    "evaluation",
+    "invariants",
+    "quality"
+  ],
+  "main": "index.js",
+  "types": "index.d.ts",
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

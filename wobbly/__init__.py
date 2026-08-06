@@ -1,6 +1,6 @@
 """wobbly — metamorphic testing for AI outputs. No answer key required."""
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 from .core import check, Relation, Report, Counterexample
 from .relations import (

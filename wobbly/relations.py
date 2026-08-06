@@ -40,7 +40,14 @@ def _eq(a: Any, b: Any) -> bool:
         return True
     if a is None or b is None:
         return False
-    return abs(float(a) - float(b)) < 1e-6
+    # Numbers compare with a small tolerance (floats, totals); ANY other output
+    # type (labels, strings, tuples, ...) uses plain equality — so `unchanged()`
+    # works for any input->output system, not only numeric extractors.
+    if isinstance(a, bool) or isinstance(b, bool):
+        return a == b
+    if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+        return abs(float(a) - float(b)) < 1e-6
+    return a == b
 
 
 def unchanged() -> Callable[[Any, Any], bool]:

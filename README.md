@@ -91,6 +91,27 @@ BROKE (1 of 5 trials):
 The extractor returned `7.95` on the original and `7.5` on a reordering of the
 same receipt. No correct total was needed to know one of those is wrong.
 
+## Not just receipts — any `input → output` system
+
+The receipt extractor above is only the demo. The engine (`check` + `Relation`)
+is domain-agnostic: give it any callable and any relations you define, and
+`unchanged()` compares numbers *or* labels/strings/anything.
+
+```python
+from wobbly import check, Relation, unchanged
+
+# system under test: a text classifier (str -> label) — no receipts anywhere
+neutral = Relation(
+    name="a neutral sentence shouldn't change the sentiment",
+    transform=lambda text: text + " The store opens at nine.",
+    assertion=unchanged(),
+)
+check(my_sentiment_classifier, "I love this", [neutral])
+```
+
+A complete, runnable version — a case-sensitivity bug caught in a text classifier
+with zero labels — is in [`examples/classifier_example.py`](examples/classifier_example.py).
+
 ## Core concepts
 
 **`Relation(name, transform, assertion, deterministic=False)`** — a metamorphic

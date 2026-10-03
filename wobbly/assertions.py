@@ -7,6 +7,7 @@ and only report a violation when a perturbation pushes the output beyond it.
 """
 from __future__ import annotations
 
+import math
 from typing import Any, List
 
 
@@ -80,3 +81,41 @@ def consistent_pick() -> Assertion:
 
 def scales_by(factor: float, tol: float = 1e-6) -> Assertion:
     return ScalesBy(factor, tol)
+
+
+def _cosine_distance(u, v) -> float:
+    dot = sum(a * b for a, b in zip(u, v))
+    nu = math.sqrt(sum(a * a for a in u))
+    nv = math.sqrt(sum(b * b for b in v))
+    if nu == 0.0 or nv == 0.0:
+        return 0.0 if nu == nv else 1.0
+    return 1.0 - dot / (nu * nv)
+
+
+class Equivalent(Assertion):
+    """Free-text semantic equivalence via an INJECTED embedder (`embed`: text ->
+    vector). Baseline-variance: the perturbed output is consistent if it is no
+    further (in embedding space) from the baseline than the baseline outputs are
+    from each other. Pass an explicit `threshold` to override the auto-calibration.
+    wobbly bundles no embedder — plug in your own (a local model or a provider)."""
+    name = "equivalent"
+
+    def __init__(self, embed, threshold=None):
+        self.embed = embed
+        self.threshold = threshold
+
+    def consistent(self, baseline, after) -> bool:
+        bvecs = [self.embed(b) for b in baseline]
+        avec = self.embed(after)
+        after_dist = min(_cosine_distance(avec, bv) for bv in bvecs)
+        if self.threshold is not None:
+            return after_dist <= self.threshold
+        spread = 0.0
+        for i in range(len(bvecs)):
+            for j in range(i + 1, len(bvecs)):
+                spread = max(spread, _cosine_distance(bvecs[i], bvecs[j]))
+        return after_dist <= spread + 1e-9
+
+
+def equivalent(embed, threshold=None) -> Assertion:
+    return Equivalent(embed, threshold)

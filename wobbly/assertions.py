@@ -12,15 +12,20 @@ from typing import Any, List
 
 
 def _eq(a: Any, b: Any) -> bool:
-    """None-safe equality; numeric-tolerant, falls back to ==."""
+    """None-safe equality. Real numbers compare with a tolerance; everything else
+    (including numeric-looking *strings* like "1.10") compares with ==, so a true
+    change in a string/label output is never silently coerced away."""
     if a is None and b is None:
         return True
     if a is None or b is None:
         return False
-    try:
-        return abs(float(a) - float(b)) < 1e-6
-    except (TypeError, ValueError):
+    if isinstance(a, bool) or isinstance(b, bool):
         return a == b
+    if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+        if a != a and b != b:   # both NaN -> treat as equal (no false alarm)
+            return True
+        return abs(a - b) < 1e-6
+    return a == b
 
 
 class Assertion:

@@ -18,6 +18,7 @@ from typing import Any, Callable, List, Optional
 
 from .core import Relation
 from .assertions import Assertion, consistent_pick
+from ._shaping import resolve_shaper
 
 
 def _seed(elements: List[Any], salt: int) -> int:
@@ -66,19 +67,7 @@ def order_invariant(
     `assertion` defaults to `consistent_pick()` (discrete-friendly; a perturbed
     output must be one the system also produced on the un-perturbed input).
     """
-    if get is not None or set is not None:
-        if get is None or set is None:
-            raise ValueError("provide both get and set, or neither, or just field")
-        getter, setter = get, set
-        label = "the selected elements"
-    elif field is not None:
-        getter = lambda x, f=field: x[f]
-        setter = lambda x, v, f=field: {**x, f: v}
-        label = f"field '{field}'"
-    else:
-        getter = lambda x: x
-        setter = lambda x, v: v
-        label = "the input list"
+    getter, setter, label = resolve_shaper(field=field, get=get, set=set)
 
     return Relation(
         name=name or f"reorder {label} => output unchanged",

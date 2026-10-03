@@ -84,8 +84,8 @@ print(report.summary())
 Output:
 
 ```
-BROKE (1 of 5 trials):
-  [reorder lines => total unchanged] expected 7.95 to be preserved, got 7.5
+BROKE (1 relation(s) violated):
+  [reorder lines => total unchanged] violated 12/20 samples (60%)
 ```
 
 The extractor returned `7.95` on the original and `7.5` on a reordering of the
@@ -116,15 +116,21 @@ with zero labels — is in [`examples/classifier_example.py`](examples/classifie
 
 **`Relation(name, transform, assertion, deterministic=False)`** — a metamorphic
 relation. `transform` maps an input to a modified input whose effect on the
-output is known; `assertion(before, after)` decides whether the two outputs are
+output is known; `assertion` (an `Assertion` like `unchanged()` or `consistent_pick()`) decides whether a perturbed output is
 consistent. Pass `deterministic=True` when the transform always produces the
 same output for a given input (see the cost note below).
 
-**`check(system, base_input, relations, samples=20, subject="")` → `Report`** —
+**`check(system, base_input, relations, samples=20, baseline_runs=5, subject="")` → `Report`** —
 runs `system` (any `input -> output` callable) on `base_input`, then on each
 relation's transformed input, and checks the assertion holds. **Input contract:**
 `base_input`, `system`, and every relation's `transform` must accept the same
 input shape — `check` feeds each transformed input straight back into `system`.
+
+**Baseline-variance control:** `check` first runs `system` `baseline_runs` times on
+the *un-perturbed* input to measure its own run-to-run variance, then only flags a
+perturbation whose output falls outside that baseline — so a model's intrinsic
+randomness is never mistaken for a bug. Per-relation violation *rates* are reported.
+
 `samples` is how many times a *randomized* relation is tried; a relation marked
 `deterministic=True` runs once regardless (repeating it would only re-run your
 system on identical input).
@@ -136,6 +142,8 @@ system on identical input).
 | `report.broke` | `True` if any relation was violated |
 | `report.counterexamples` | list of `Counterexample`, one per violated relation |
 | `report.trials` | how many transform/assert cycles ran |
+| `report.relation_stats` | per-relation trials + violations (the violation rate) |
+| `report.baseline` | the system's outputs on the un-perturbed input |
 | `report.errors` | messages if the system raised |
 | `report.summary()` | one-line human-readable result |
 
@@ -216,7 +224,7 @@ from wobbly import check, default_pack, extract_total
 receipt = {"lines": ["MINIMART SDN BHD", "Milk        5.00", "Bread       2.50",
                      "TOTAL       7.50", "CASH       10.00", "CHANGE      2.50"]}
 report = check(lambda r: extract_total(r["lines"]), receipt, default_pack())
-print(report.summary())        # OK — 22 trials, no contradiction found
+print(report.summary())        # OK — 22 trials, no contradiction beyond baseline noise
 ```
 
 `extract_total(lines)` is the demo system under test — a heuristic receipt-total

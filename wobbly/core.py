@@ -13,34 +13,27 @@ relations. For each relation it transforms the input, runs the system on both,
 and checks that the asserted relationship between the two outputs holds. When it
 doesn't, you've found a bug — without ever knowing the right answer.
 """
-from __future__ import annotations
-
 from dataclasses import dataclass, field
-from typing import Any, Callable, List, Optional
+from typing import Any, Callable, List
 
+from .assertions import Assertion
 
-# A transform mutates an input in a way whose effect on the output is known.
 Transform = Callable[[Any], Any]
-# An assertion decides whether (output_before, output_after) is consistent.
-Assertion = Callable[[Any, Any], bool]
 
 
 @dataclass(frozen=True)
 class Relation:
-    """A metamorphic relation: transform the input, assert on the two outputs.
+    """A metamorphic relation: transform the input, then judge the output against
+    the system's baseline via `assertion`.
 
     INPUT CONTRACT: `transform` receives the same `base_input` you pass to
-    `check`, and must return a value of that same shape — because `check` feeds
-    the transformed value straight back into your `system`. So `base_input`,
-    `system`, and every `transform` must agree on one input type. The built-in
-    pack operates on a receipt dict `{"lines": [...]}`, so a `lines -> total`
-    extractor is adapted with `lambda r: extract_total(r["lines"])`.
+    `check` and returns a value of that same shape, because `check` feeds it back
+    into `system`. So base_input, system, and every transform share one input
+    type.
 
-    Set `deterministic=True` if the transform always produces the same output for
-    a given input (e.g. appending a fixed footer). `check` then runs it once
-    instead of `samples` times — no coverage is lost, and if `system` is a paid
-    API call this avoids paying for identical repeats. Leave it False for
-    randomized transforms (e.g. a shuffle), which need multiple samples.
+    Set `deterministic=True` for a transform that always yields the same output
+    for a given input (a fixed footer, a currency strip): `check` runs it once
+    instead of `samples` times.
     """
     name: str
     transform: Transform
@@ -51,15 +44,28 @@ class Relation:
 @dataclass(frozen=True)
 class Counterexample:
     relation: str
-    before: Any
+    before: Any            # a representative baseline output (baseline[0])
     after: Any
     detail: str = ""
 
 
 @dataclass
+class RelationStat:
+    name: str
+    trials: int = 0
+    violations: int = 0
+
+    @property
+    def rate(self) -> float:
+        return self.violations / self.trials if self.trials else 0.0
+
+
+@dataclass
 class Report:
     subject: str = ""
+    baseline: List[Any] = field(default_factory=list)
     counterexamples: List[Counterexample] = field(default_factory=list)
+    relation_stats: List[RelationStat] = field(default_factory=list)
     trials: int = 0
     errors: List[str] = field(default_factory=list)
 
@@ -72,12 +78,11 @@ class Report:
         if self.errors:
             return f"{head}ERROR after {self.trials} trials: {self.errors[0]}"
         if not self.broke:
-            return f"{head}OK — {self.trials} trials, no contradiction found"
-        lines = [f"{head}BROKE ({len(self.counterexamples)} of {self.trials} trials):"]
-        for c in self.counterexamples[:5]:
-            lines.append(f"  [{c.relation}] {c.detail}")
-        if len(self.counterexamples) > 5:
-            lines.append(f"  ... and {len(self.counterexamples) - 5} more")
+            return f"{head}OK — {self.trials} trials, no contradiction beyond baseline noise"
+        lines = [f"{head}BROKE ({len(self.counterexamples)} relation(s) violated):"]
+        for s in self.relation_stats:
+            if s.violations:
+                lines.append(f"  [{s.name}] violated {s.violations}/{s.trials} samples ({100*s.rate:.0f}%)")
         return "\n".join(lines)
 
 
@@ -86,43 +91,48 @@ def check(
     base_input: Any,
     relations: List[Relation],
     samples: int = 20,
+    baseline_runs: int = 5,
     subject: str = "",
 ) -> Report:
-    """Run `system` against each relation up to `samples` times.
+    """Run `system` against each relation, judging perturbed outputs against the
+    system's own baseline so intrinsic run-to-run noise is not mistaken for a bug.
 
-    `system` is your AI/extractor: input -> output. wobbly never learns the
-    "right" output; it only checks the relations you assert.
-
-    `samples` applies to randomized relations; a relation marked
-    `deterministic=True` is run once regardless (see `Relation`). All of
-    `base_input`, `system`, and each relation's transform must accept the same
-    input shape.
+    `samples` applies to randomized relations; a `deterministic=True` relation is
+    run once. `baseline_runs` is how many times the system is run on the
+    un-perturbed input to measure its intrinsic output spread.
     """
     report = Report(subject=subject)
     try:
-        base_output = system(base_input)
+        baseline = [system(base_input) for _ in range(max(1, baseline_runs))]
     except Exception as e:  # a system that crashes on the base input is its own bug
         report.errors.append(f"system raised on base input: {e!r}")
         return report
+    report.baseline = baseline
+    ref = baseline[0]
 
     for rel in relations:
         n = 1 if rel.deterministic else samples
+        stat = RelationStat(name=rel.name)
+        first_ce = None
         for _ in range(n):
             report.trials += 1
+            stat.trials += 1
             try:
                 mutated = rel.transform(base_input)
-                mutated_output = system(mutated)
+                after = system(mutated)
             except Exception as e:
                 report.errors.append(f"{rel.name}: transform/system raised: {e!r}")
                 break
-            if not rel.assertion(base_output, mutated_output):
-                report.counterexamples.append(
-                    Counterexample(
+            if not rel.assertion.consistent(baseline, after):
+                stat.violations += 1
+                if first_ce is None:
+                    first_ce = Counterexample(
                         relation=rel.name,
-                        before=base_output,
-                        after=mutated_output,
-                        detail=f"expected {base_output!r} to be preserved, got {mutated_output!r}",
+                        before=ref,
+                        after=after,
+                        detail=f"expected {ref!r} to be preserved, got {after!r}",
                     )
-                )
-                break  # one counterexample per relation is enough to prove the break
+        report.relation_stats.append(stat)
+        if first_ce is not None:
+            report.counterexamples.append(first_ce)
     return report

@@ -3,6 +3,7 @@
 __version__ = "0.1.1"
 
 from .core import check, Relation, Report, Counterexample
+from .assertions import consistent_pick
 from .relations import (
     default_pack,
     total_reorder_invariant,
@@ -31,6 +32,7 @@ __all__ = [
     "inject_footer",
     "normalize_currency",
     "unchanged",
+    "consistent_pick",
     "scales_by",
     "extract_total",
 ]

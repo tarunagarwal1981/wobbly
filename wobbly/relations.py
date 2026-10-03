@@ -16,6 +16,7 @@ import re
 from typing import Any, Callable, List, Tuple
 
 from .core import Relation
+from .assertions import unchanged, scales_by  # noqa: F401  (re-exported for back-compat)
 
 # Money value, per the domain notes: NN.NN not embedded in a longer digit run.
 _MONEY = re.compile(r"(?<!\d)(\d{1,6}\.\d{2})(?!\d)")
@@ -31,38 +32,6 @@ _TOTALS_CUES = (
     "AMOUNT", "CASH", "CHANGE", "CARD", "VISA", "MASTER",
     "PAID", "PAYMENT", "TENDER", "BALANCE", "DUE",
 )
-
-# ---- assertions -------------------------------------------------------------
-
-def _eq(a: Any, b: Any) -> bool:
-    # None-safe equality; two Nones are "consistent" (both abstained)
-    if a is None and b is None:
-        return True
-    if a is None or b is None:
-        return False
-    # Numbers compare with a small tolerance (floats, totals); ANY other output
-    # type (labels, strings, tuples, ...) uses plain equality — so `unchanged()`
-    # works for any input->output system, not only numeric extractors.
-    if isinstance(a, bool) or isinstance(b, bool):
-        return a == b
-    if isinstance(a, (int, float)) and isinstance(b, (int, float)):
-        return abs(float(a) - float(b)) < 1e-6
-    return a == b
-
-
-def unchanged() -> Callable[[Any, Any], bool]:
-    """The output must be identical before and after the transform."""
-    return _eq
-
-
-def scales_by(factor: float, tol: float = 1e-6) -> Callable[[Any, Any], bool]:
-    """The output must scale by a known factor."""
-    def ok(before: Any, after: Any) -> bool:
-        if before is None or after is None:
-            return before is None and after is None
-        return abs(float(after) - float(before) * factor) < max(tol, abs(before) * 1e-4)
-    return ok
-
 
 # ---- transforms (operate on a receipt dict: {"lines": [...], ...}) ----------
 

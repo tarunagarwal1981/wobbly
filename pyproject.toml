@@ -29,6 +29,9 @@ Homepage = "https://github.com/tarunagarwal1981/wobbly"
 Repository = "https://github.com/tarunagarwal1981/wobbly"
 Writeup = "https://medium.com/towards-artificial-intelligence/your-llm-extracted-10-000-numbers-which-ones-are-wrong-7a5d54050dd3"
 
+[project.scripts]
+wobbly = "wobbly.cli:main"
+
 [project.optional-dependencies]
 test = ["pytest>=7"]
 

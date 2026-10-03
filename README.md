@@ -112,6 +112,70 @@ check(my_sentiment_classifier, "I love this", [neutral])
 A complete, runnable version — a case-sensitivity bug caught in a text classifier
 with zero labels — is in [`examples/classifier_example.py`](examples/classifier_example.py).
 
+## Catching LLM robustness bugs (no labels)
+
+The same engine catches failure modes every LLM developer worries about but can't
+easily test without labels. The headline one is **order / position bias** —
+reordering multiple-choice options or retrieved documents must not change a
+correct answer, yet it often does:
+
+```python
+from wobbly import check, order_invariant
+
+def biased_model(mcq):            # leans toward the first option (very common)
+    return mcq["options"][0]
+
+mcq = {"options": ["Dolphin", "Shark", "Tuna", "Octopus"]}
+report = check(biased_model, mcq, [order_invariant(field="options")],
+               samples=20, baseline_runs=1)
+print(report.summary())
+```
+
+```
+BROKE (1 relation(s) violated):
+  [reorder field 'options' => output unchanged] violated 14/20 samples (70%)
+```
+
+Reordering the options flips the pick 70% of the time — found with no answer key.
+(Runnable: [`examples/mcq_order_bias.py`](examples/mcq_order_bias.py).)
+
+**The catalog.** Each is a *fair* relation (a correct system cannot fail it), and
+targets the input via a plain list, a dict `field=`, or a `get=/set=` accessor:
+
+| relation | catches |
+|---|---|
+| `order_invariant(field=...)` | option-order bias; position / "lost in the middle" |
+| `distractor_robust(field=...)` | sensitivity to irrelevant added context |
+| `formatting_invariant(field=...)` | whitespace / layout sensitivity |
+| `paraphrase_invariant(field=..., variants=[...])` | instruction-wording sensitivity |
+
+For **free-text** outputs (summaries, open answers), pass
+`assertion=equivalent(embed)` — you inject your own embedder (a sentence-transformer,
+or a provider's embedding API); wobbly bundles none. It flags only when a
+perturbation moves meaning *more than the model's own paraphrasing does* (the
+baseline-variance control). Runnable: [`examples/freetext_distractor.py`](examples/freetext_distractor.py).
+
+**In your test suite** — `assert_robust` fails CI on a violation:
+
+```python
+from wobbly import assert_robust, order_invariant
+
+def test_my_classifier_is_order_robust():
+    assert_robust(my_classifier, {"options": [...]},
+                  [order_invariant(field="options")])
+```
+
+**Against a real model** — wrap any provider call with caching + a cost cap, so
+the baseline runs cost one call and spend is bounded (no SDK dependency):
+
+```python
+from wobbly import cached_system
+system = cached_system(lambda prompt: my_llm(prompt), max_calls=200)
+```
+
+**CLI** — `wobbly demo` runs a self-contained order-bias catch; `wobbly version` prints the version.
+
+
 ## Core concepts
 
 **`Relation(name, transform, assertion, deterministic=False)`** — a metamorphic

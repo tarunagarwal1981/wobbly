@@ -4,6 +4,7 @@ __version__ = "0.1.1"
 
 from .core import check, Relation, Report, Counterexample
 from .assertions import consistent_pick
+from .order import order_invariant, permute
 from .relations import (
     default_pack,
     total_reorder_invariant,
@@ -34,5 +35,8 @@ __all__ = [
     "unchanged",
     "consistent_pick",
     "scales_by",
+    # general relations
+    "order_invariant",
+    "permute",
     "extract_total",
 ]

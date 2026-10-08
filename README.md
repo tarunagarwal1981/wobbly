@@ -11,6 +11,23 @@ pip install wobbly
 Python ≥ 3.9, no dependencies. From source:
 `pip install git+https://github.com/tarunagarwal1981/wobbly`.
 
+## Test your own LLM judge in 5 lines
+
+Does your LLM-as-judge prefer whichever answer comes first? No labels needed —
+`judge_bias` swaps the answers and counts how often the judge changes its mind.
+
+```python
+from wobbly import judge_bias
+
+cases = [{"question": "Which name is better?", "answers": ["FocusFlow", "TaskNest"]}]
+res = judge_bias(lambda case: my_judge(case), cases)   # judge returns "A"/"B" or the answer text
+print(res.summary())
+```
+
+It resolves the judge's letter to the chosen *answer text* before comparing, so
+re-lettering after the swap is never mistaken for a flip. It measures
+self-consistency, not correctness. Reference usage: `WOBBLY_MODE=judge python scripts/live_check.py`.
+
 ## The problem
 
 You point an LLM at 10,000 documents and ask it to extract a number. It returns
@@ -138,6 +155,12 @@ BROKE (1 relation(s) violated):
 
 Reordering the options flips the pick 70% of the time — found with no answer key.
 (Runnable: [`examples/mcq_order_bias.py`](examples/mcq_order_bias.py).)
+
+`order_invariant(..., coverage="rotate")` swaps the random shuffle for a
+Latin-square rotation, so every option visits every position exactly once (for two
+options: both orders). Suggested by feedback from the community; recommended for
+3+ options. Caveat: it balances each option's *marginal* position, not pairwise
+adjacency effects. `"random"` stays the default.
 
 **The catalog.** Each is a *fair* relation (a correct system cannot fail it), and
 targets the input via a plain list, a dict `field=`, or a `get=/set=` accessor:
@@ -355,6 +378,11 @@ is an active area — see **METAL** (a metamorphic testing framework for LLMs),
 is not novel research; it is a small, focused engine (`check` + `Relation` +
 `Report`, a few hundred lines) plus an opinionated relation pack, built to make
 the technique easy to apply to your own extraction system.
+
+## Changelog
+
+- **0.3.0** — `judge_bias()` for measuring position bias in your own LLM judge; `order_invariant(coverage="rotate")` Latin-square positional rotation (`"random"` remains the default).
+- **0.2.0** — exports, CLI entry point, robustness section.
 
 ## License
 

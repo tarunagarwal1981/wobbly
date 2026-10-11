@@ -117,3 +117,92 @@ def judge_bias(
     rate = flips_total / trials_total if trials_total else 0.0
     return JudgeBiasResult(flip_rate=rate, flipped=flipped, n_cases=n,
                            per_case=per_case, reports=reports)
+
+
+@dataclass
+class LengthBiasResult:
+    flip_rate: float                       # 0-1: padded trials where the pick moved to the padded answer
+    flipped: int                           # cases that flipped to the padded (weaker) answer
+    n_cases: int
+    per_case: List[Dict[str, Any]] = dc_field(default_factory=list)
+
+    def summary(self) -> str:
+        lines = [
+            f"length (verbosity) bias: {self.flipped}/{self.n_cases} cases flipped "
+            f"when the losing answer was padded ({100 * self.flip_rate:.0f}% of padded trials "
+            f"moved the pick to it)",
+        ]
+        for r in self.per_case:
+            if not r.get("stable", True):
+                lines.append(f"  skip  (no stable baseline pick)  {r['question']}")
+            else:
+                mark = "FLIP" if r["broke"] else "ok  "
+                lines.append(f"  {mark} {r['flips']}/{r['trials']}  {r['question']}  "
+                             f"(prefers: {str(r['winner'])[:32]!r})")
+        lines.append("Padding is content-free filler; a correct judge ignores it. No answer key used.")
+        return "\n".join(lines)
+
+
+def length_bias(
+    judge: Callable[[Any], Any],
+    cases: Iterable[Dict[str, Any]],
+    field: str = "answers",
+    filler: Any = None,
+    factor: float = 2.0,
+    samples: int = 8,
+    baseline_runs: int = 4,
+) -> LengthBiasResult:
+    """Measure how often a pairwise `judge` switches to the answer it DIDN'T pick
+    once that answer is padded with content-free filler — i.e. length/verbosity
+    bias, label-free.
+
+    Per case: establish the baseline pick over `baseline_runs` on the unpadded
+    answers (baseline-variance control); if that pick is stable, pad the *loser*
+    and re-judge `samples` times. A flip = the verdict moves to the now-longer,
+    previously-weaker answer. Pairs whose baseline pick already flickers are
+    skipped (can't attribute the change to length)."""
+    from .text import pad_text
+
+    per_case: List[Dict[str, Any]] = []
+    flipped = flips_total = trials_total = 0
+    n = 0
+
+    for case in cases:
+        n += 1
+        answers = list(case[field])
+        q = case.get("question", "")
+
+        def pick_on(c):
+            return _resolve_pick(judge(c), list(c[field]))
+
+        if len(answers) != 2:
+            per_case.append({"question": q, "stable": False, "flips": 0, "trials": 0, "broke": False})
+            continue
+
+        base_picks = [pick_on(case) for _ in range(max(1, baseline_runs))]
+        if len(set(base_picks)) != 1:                      # judge already inconsistent unpadded
+            per_case.append({"question": q, "stable": False, "flips": 0, "trials": 0, "broke": False})
+            continue
+        winner = base_picks[0]
+        losers = [a for a in answers if a != winner]
+        if not losers:
+            per_case.append({"question": q, "stable": False, "flips": 0, "trials": 0, "broke": False})
+            continue
+        loser = losers[0]
+
+        padded_loser = pad_text(loser, filler=filler, factor=factor) if isinstance(loser, str) else loser
+        padded_answers = [padded_loser if a == loser else a for a in answers]
+        padded_case = {**case, field: padded_answers}
+
+        trials = max(1, samples)
+        flips = sum(1 for _ in range(trials)
+                    if _resolve_pick(judge(padded_case), list(padded_answers)) == padded_loser)
+        broke = flips > 0
+        flips_total += flips
+        trials_total += trials
+        flipped += 1 if broke else 0
+        per_case.append({"question": q, "winner": winner, "flips": flips,
+                         "trials": trials, "broke": broke, "stable": True})
+
+    rate = flips_total / trials_total if trials_total else 0.0
+    return LengthBiasResult(flip_rate=rate, flipped=flipped, n_cases=n, per_case=per_case)

@@ -1,12 +1,13 @@
 """wobbly — metamorphic testing for AI outputs. No answer key required."""
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 from .core import check, Relation, Report, Counterexample
 from .assertions import consistent_pick, equivalent
 from .order import order_invariant, permute
-from .judge import judge_bias, JudgeBiasResult
-from .text import distractor_robust, formatting_invariant, paraphrase_invariant
+from .judge import judge_bias, JudgeBiasResult, length_bias, LengthBiasResult
+from .text import (distractor_robust, formatting_invariant, paraphrase_invariant,
+                   length_invariant, pad_text)
 from .testing import assert_robust
 from .llm import cached_system
 from .relations import (
@@ -45,9 +46,13 @@ __all__ = [
     "permute",
     "judge_bias",
     "JudgeBiasResult",
+    "length_bias",
+    "LengthBiasResult",
     "distractor_robust",
     "formatting_invariant",
     "paraphrase_invariant",
+    "length_invariant",
+    "pad_text",
     # delivery
     "assert_robust",
     "cached_system",

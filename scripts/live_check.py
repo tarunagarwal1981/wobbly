@@ -19,7 +19,7 @@ Setup (run it YOURSELF; your key never leaves your machine):
     export ANTHROPIC_API_KEY=sk-ant-...
     python scripts/live_check.py
     # optional: WOBBLY_MODEL=claude-... WOBBLY_SAMPLES=8 WOBBLY_BASELINE=4
-    #           WOBBLY_MAX_CALLS=1500 WOBBLY_MODE=both|mcq|judge
+    #           WOBBLY_MAX_CALLS=1500 WOBBLY_MODE=both|mcq|judge|length
     unset ANTHROPIC_API_KEY
 """
 import os
@@ -27,7 +27,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from wobbly import check, order_invariant, consistent_pick, judge_bias
+from wobbly import check, order_invariant, consistent_pick, judge_bias, length_bias
 
 MODEL = os.environ.get("WOBBLY_MODEL", "claude-haiku-4-5-20251001")
 SAMPLES = int(os.environ.get("WOBBLY_SAMPLES", "8"))
@@ -207,9 +207,19 @@ def run_judge(call):
     print()
 
 
+def run_length(call):
+    """Pad the losing answer with content-free filler; does the verdict move to it?
+    Length / verbosity bias (wobbly.length_bias)."""
+    res = length_bias(lambda case: call(_judge_prompt(case)), JUDGE_CASES,
+                      samples=SAMPLES, baseline_runs=BASELINE)
+    print("== LENGTH / verbosity bias (pad the loser) ==")
+    print(res.summary())
+    print()
+
+
 def main():
-    if MODE not in ("both", "mcq", "judge"):
-        sys.exit(f"WOBBLY_MODE must be both|mcq|judge, got {MODE!r}")
+    if MODE not in ("both", "mcq", "judge", "length"):
+        sys.exit(f"WOBBLY_MODE must be both|mcq|judge|length, got {MODE!r}")
     anthropic = _require_anthropic()
     call = _capped(_make_call(anthropic), MAX_CALLS)
     print(f"model: {MODEL}   (samples/item: {SAMPLES}, baseline/item: {BASELINE}, mode: {MODE})\n")
@@ -217,6 +227,8 @@ def main():
         run_mcq(call)
     if MODE in ("both", "judge"):
         run_judge(call)
+    if MODE == "length":
+        run_length(call)
     print(f"(total model API calls: {call.calls()})  No answer key was used.")
 
 

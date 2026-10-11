@@ -37,6 +37,15 @@ wobbly judge myjudge.py            # reports how many pairs flip; --fail-on-flip
 
 Reference usage: `WOBBLY_MODE=judge python scripts/live_check.py`.
 
+Position isn't the only bias you can catch this way. `length_bias` pads the answer
+the judge *didn't* pick with content-free filler and checks whether the verdict
+moves to it — verbosity bias, same label-free logic:
+
+```python
+from wobbly import length_bias
+res = length_bias(my_judge, cases)   # flips => the judge rewards length, not quality
+```
+
 ## The problem
 
 You point an LLM at 10,000 documents and ask it to extract a number. It returns
@@ -390,6 +399,7 @@ the technique easy to apply to your own extraction system.
 
 ## Changelog
 
+- **0.4.0** — `wobbly judge <file>` CLI to measure position bias from the terminal (`--fail-on-flip` for CI); `length_bias()` + `length_invariant()` for verbosity/length bias (pad the losing answer with content-free filler and see if the verdict moves). Judge-reliability notes: report flipped pairs as a count, don't average contradictory verdicts into 0.5; and self-consistency under swap is not correctness — keep a few scored cases alongside.
 - **0.3.0** — `judge_bias()` for measuring position bias in your own LLM judge; `order_invariant(coverage="rotate")` Latin-square positional rotation (`"random"` remains the default).
 - **0.2.0** — exports, CLI entry point, robustness section.
 

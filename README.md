@@ -26,7 +26,16 @@ print(res.summary())
 
 It resolves the judge's letter to the chosen *answer text* before comparing, so
 re-lettering after the swap is never mistaken for a flip. It measures
-self-consistency, not correctness. Reference usage: `WOBBLY_MODE=judge python scripts/live_check.py`.
+self-consistency, not correctness.
+
+Or straight from the terminal — put `judge(case)` and `cases = [...]` in a file
+(see `examples/judge_cli_example.py`) and run:
+
+```bash
+wobbly judge myjudge.py            # reports how many pairs flip; --fail-on-flip for CI
+```
+
+Reference usage: `WOBBLY_MODE=judge python scripts/live_check.py`.
 
 ## The problem
 

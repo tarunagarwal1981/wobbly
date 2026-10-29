@@ -88,3 +88,9 @@ def test_resolve_pick_ignores_letters_inside_words():
 
 def test_resolve_pick_fallback_truncates():
     assert _resolve_pick("z" * 100, ["x", "y"]) == "z" * 40
+
+
+def test_resolve_pick_int_index():
+    assert _resolve_pick(0, ["x", "y"]) == "x"       # bare 0-based index
+    assert _resolve_pick(1, ["x", "y"]) == "y"
+    assert _resolve_pick(5, ["x", "y"]) == "5"       # out of range -> fallback text

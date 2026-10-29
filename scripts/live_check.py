@@ -223,12 +223,18 @@ def main():
     anthropic = _require_anthropic()
     call = _capped(_make_call(anthropic), MAX_CALLS)
     print(f"model: {MODEL}   (samples/item: {SAMPLES}, baseline/item: {BASELINE}, mode: {MODE})\n")
-    if MODE in ("both", "mcq"):
-        run_mcq(call)
-    if MODE in ("both", "judge"):
-        run_judge(call)
-    if MODE == "length":
-        run_length(call)
+    try:
+        if MODE in ("both", "mcq"):
+            run_mcq(call)
+        if MODE in ("both", "judge"):
+            run_judge(call)
+        if MODE == "length":
+            run_length(call)
+    except anthropic.AuthenticationError:
+        sys.exit("\nAuthentication failed (401): ANTHROPIC_API_KEY is missing, invalid, or "
+                 "revoked.\nExport a current key and retry:  export ANTHROPIC_API_KEY=sk-ant-...")
+    except anthropic.APIError as e:
+        sys.exit(f"\nAnthropic API error ({getattr(e, 'status_code', '?')}): {e}")
     print(f"(total model API calls: {call.calls()})  No answer key was used.")
 
 

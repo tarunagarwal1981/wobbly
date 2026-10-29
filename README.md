@@ -399,6 +399,7 @@ the technique easy to apply to your own extraction system.
 
 ## Changelog
 
+- **0.5.0** — `position_sweep()` for "lost in the middle": slide one item (a retrieved doc, an option) through every position while holding the rest in order, and flag if the output depends on where it sits — the label-free RAG position-bias test. Plus polish: `_resolve_pick` accepts a bare 0-based integer index; `live_check.py` prints a clean message on an auth error instead of a traceback; `length_bias` docstring documents that content-free filler means ~0 is the expected (good) result on capable models.
 - **0.4.0** — `wobbly judge <file>` CLI to measure position bias from the terminal (`--fail-on-flip` for CI); `length_bias()` + `length_invariant()` for verbosity/length bias (pad the losing answer with content-free filler and see if the verdict moves). Judge-reliability notes: report flipped pairs as a count, don't average contradictory verdicts into 0.5; and self-consistency under swap is not correctness — keep a few scored cases alongside.
 - **0.3.0** — `judge_bias()` for measuring position bias in your own LLM judge; `order_invariant(coverage="rotate")` Latin-square positional rotation (`"random"` remains the default).
 - **0.2.0** — exports, CLI entry point, robustness section.

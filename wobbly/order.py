@@ -78,6 +78,74 @@ def permute(
     return t
 
 
+def slide(
+    getter: Callable[[Any], List[Any]],
+    setter: Callable[[Any, List[Any]], Any],
+    pivot: int = 0,
+    pivot_match: Optional[Callable[[Any], bool]] = None,
+) -> Callable[[Any], Any]:
+    """Return a transform that slides ONE item through every position, keeping the
+    other items in their original relative order. Successive calls place the pivot
+    at position 0, 1, 2, ... (cycling), so `samples >= N` visits every slot once.
+
+    The pivot is `pivot_match` (the first item for which it returns True) if given,
+    else the item at index `pivot` (default 0). Abstains with fewer than 2 items.
+
+    This isolates position as the only variable — the "lost in the middle" test: a
+    correct system's handling of an item must not depend on where in the list it
+    sits (a retrieved doc, an option, a candidate)."""
+    counter = {"n": 0}
+
+    def t(base_input: Any) -> Any:
+        items = list(getter(base_input))
+        n = len(items)
+        if n < 2:
+            return base_input
+        if pivot_match is not None:
+            pidx = next((i for i, it in enumerate(items) if pivot_match(it)), None)
+            if pidx is None:
+                return base_input  # pivot not present — abstain rather than mislead
+        else:
+            pidx = pivot % n
+        pivot_item = items[pidx]
+        others = items[:pidx] + items[pidx + 1:]      # relative order preserved
+        target = counter["n"] % n
+        counter["n"] += 1
+        return setter(base_input, others[:target] + [pivot_item] + others[target:])
+    return t
+
+
+def position_sweep(
+    field: Optional[str] = None,
+    get: Optional[Callable[[Any], List[Any]]] = None,
+    set: Optional[Callable[[Any, List[Any]], Any]] = None,
+    pivot: int = 0,
+    pivot_match: Optional[Callable[[Any], bool]] = None,
+    assertion: Optional[Assertion] = None,
+    name: Optional[str] = None,
+) -> Relation:
+    """Build a position-sweep ("lost in the middle") Relation.
+
+    Slides one item through every position while holding the rest in order, so the
+    only thing that changes is where that item sits. If the output depends on the
+    pivot's position, the system is position-sensitive — a label-free bug that
+    especially bites RAG (a relevant document used less when it lands in the
+    middle) and long option lists.
+
+    Shaper: `field=`, `get=/set=`, or the whole input (as in `order_invariant`).
+    Pivot: `pivot_match=callable` to locate the item (e.g. the relevant doc), else
+    `pivot=index` (default 0). Run with `samples >= len(list)` to cover every slot.
+    `assertion` defaults to `consistent_pick()`.
+    """
+    getter, setter, label = resolve_shaper(field=field, get=get, set=set)
+
+    return Relation(
+        name=name or f"sweep an item through {label} => output unchanged",
+        transform=slide(getter, setter, pivot=pivot, pivot_match=pivot_match),
+        assertion=assertion if assertion is not None else consistent_pick(),
+    )
+
+
 def order_invariant(
     field: Optional[str] = None,
     get: Optional[Callable[[Any], List[Any]]] = None,

@@ -1,10 +1,10 @@
 """wobbly — metamorphic testing for AI outputs. No answer key required."""
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 from .core import check, Relation, Report, Counterexample
 from .assertions import consistent_pick, equivalent
-from .order import order_invariant, permute
+from .order import order_invariant, permute, position_sweep, slide
 from .judge import judge_bias, JudgeBiasResult, length_bias, LengthBiasResult
 from .text import (distractor_robust, formatting_invariant, paraphrase_invariant,
                    length_invariant, pad_text)
@@ -44,6 +44,8 @@ __all__ = [
     # general relations
     "order_invariant",
     "permute",
+    "position_sweep",
+    "slide",
     "judge_bias",
     "JudgeBiasResult",
     "length_bias",

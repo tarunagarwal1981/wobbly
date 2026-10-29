@@ -26,12 +26,16 @@ _LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 def _resolve_pick(ret: Any, answers: List[Any]) -> Any:
     """Map a judge's return value to the chosen answer's content.
 
-    Accepts the exact answer text, a letter ("A"/"b"/"B."), a response that
-    contains exactly one answer's text, or a response with a standalone capital
-    letter ("Answer: B"). Anything else falls back to str(ret)[:40]."""
+    Accepts the exact answer text, a bare 0-based integer index, a letter
+    ("A"/"b"/"B."), a response that contains exactly one answer's text, or a
+    response with a standalone capital letter ("Answer: B"). Anything else falls
+    back to str(ret)[:40]."""
     for a in answers:
         if ret == a:
             return a
+    # a bare integer is treated as a 0-based index into answers
+    if isinstance(ret, int) and not isinstance(ret, bool) and 0 <= ret < len(answers):
+        return answers[ret]
     text = str(ret).strip()
     bare = text.strip(" .:)(\"'*").upper()
     if len(bare) == 1 and bare in _LETTERS[:len(answers)]:
@@ -160,7 +164,14 @@ def length_bias(
     answers (baseline-variance control); if that pick is stable, pad the *loser*
     and re-judge `samples` times. A flip = the verdict moves to the now-longer,
     previously-weaker answer. Pairs whose baseline pick already flickers are
-    skipped (can't attribute the change to length)."""
+    skipped (can't attribute the change to length).
+
+    LIMITATION: the filler is deliberately content-free (it must be, to stay fair),
+    which makes it easy for a capable model to recognise and ignore — so a result
+    of ~0 is common and is the GOOD outcome, not a tool failure. This catches
+    "fooled by obvious padding", NOT "prefers genuinely longer, more detailed
+    answers" (the latter isn't cleanly label-free: longer-with-real-content may
+    truly be better). Treat a non-zero result as the signal."""
     from .text import pad_text
 
     per_case: List[Dict[str, Any]] = []

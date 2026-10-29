@@ -180,15 +180,36 @@ options: both orders). Suggested by feedback from the community; recommended for
 3+ options. Caveat: it balances each option's *marginal* position, not pairwise
 adjacency effects. `"random"` stays the default.
 
+**"Lost in the middle" — `position_sweep`.** The sharper, RAG-focused version:
+instead of reordering everything, it slides *one* item — a retrieved document, a
+candidate — through every position while holding the rest in order, so position is
+the only variable. If the output depends on where that item sits, you've found
+"lost in the middle" with no labels. Locate the item with `pivot_match=` (or
+`pivot=index`), and run `samples >= len(list)` to cover every slot:
+
+```python
+from wobbly import check, position_sweep
+
+rel = position_sweep(field="docs", pivot_match=lambda d: d["id"] == "relevant")
+report = check(my_rag_system, {"docs": [...]}, [rel], samples=8)
+report.broke   # True => the answer depends on where the relevant doc sits
+```
+
 **The catalog.** Each is a *fair* relation (a correct system cannot fail it), and
 targets the input via a plain list, a dict `field=`, or a `get=/set=` accessor:
 
 | relation | catches |
 |---|---|
-| `order_invariant(field=...)` | option-order bias; position / "lost in the middle" |
+| `order_invariant(field=...)` | option-order bias (reorder all elements) |
+| `position_sweep(field=..., pivot_match=...)` | position bias / "lost in the middle" (slide one item through every slot) |
 | `distractor_robust(field=...)` | sensitivity to irrelevant added context |
 | `formatting_invariant(field=...)` | whitespace / layout sensitivity |
 | `paraphrase_invariant(field=..., variants=[...])` | instruction-wording sensitivity |
+| `length_invariant(field=...)` | length / verbosity sensitivity (pad with content-free filler) |
+
+For **LLM-as-judge** specifically, two helpers wrap these into one call —
+`judge_bias` (swap A/B, position bias) and `length_bias` (pad the loser, verbosity
+bias); see [Test your own LLM judge](#test-your-own-llm-judge-in-5-lines) above.
 
 For **free-text** outputs (summaries, open answers), pass
 `assertion=equivalent(embed)` — you inject your own embedder (a sentence-transformer,
@@ -214,7 +235,9 @@ from wobbly import cached_system
 system = cached_system(lambda prompt: my_llm(prompt), max_calls=200)
 ```
 
-**CLI** — `wobbly demo` runs a self-contained order-bias catch; `wobbly version` prints the version.
+**CLI** — `wobbly judge <file>` measures position bias in a judge you define in a
+file (`--fail-on-flip` to gate CI); `wobbly demo` runs a self-contained order-bias
+catch; `wobbly version` prints the version.
 
 
 ## Core concepts

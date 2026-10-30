@@ -43,20 +43,7 @@ _DEMO_CASES = [
 def _load_user_judge(path: str):
     """Import FILE and return (judge, cases). FILE must define a callable
     `judge(case)` and a non-empty list `cases`."""
-    import importlib.util
-    import os
-
-    if not os.path.isfile(path):
-        raise SystemExit(f"wobbly judge: file not found: {path}")
-    spec = importlib.util.spec_from_file_location("_wobbly_user_judge", path)
-    if spec is None or spec.loader is None:
-        raise SystemExit(f"wobbly judge: could not import {path}")
-    mod = importlib.util.module_from_spec(spec)
-    try:
-        spec.loader.exec_module(mod)
-    except Exception as e:  # surface the user's own import error clearly
-        raise SystemExit(f"wobbly judge: error importing {path}: {e!r}")
-
+    mod = _load_user_module(path)
     judge = getattr(mod, "judge", None)
     cases = getattr(mod, "cases", None)
     if not callable(judge):
@@ -64,6 +51,54 @@ def _load_user_judge(path: str):
     if not cases:
         raise SystemExit(f"wobbly judge: {path} must define a non-empty list `cases`.")
     return judge, cases
+
+
+def _run_cmd(path: str, as_json: bool, fail_on_flag: bool, samples: int, baseline: int) -> int:
+    """`wobbly run FILE`: load system, inputs, relations from FILE and run
+    check_batch over the dataset (BLIND — no labels)."""
+    import json as _json
+
+    from .batch import check_batch
+
+    mod = _load_user_module(path)
+    system = getattr(mod, "system", None)
+    inputs = getattr(mod, "inputs", None)
+    relations = getattr(mod, "relations", None)
+    if not callable(system):
+        raise SystemExit(f"wobbly run: {path} must define a callable `system(input)`.")
+    if inputs is None:
+        raise SystemExit(f"wobbly run: {path} must define an iterable `inputs`.")
+    if not relations:
+        raise SystemExit(f"wobbly run: {path} must define a non-empty list `relations`.")
+
+    report = check_batch(system, list(inputs), relations, samples=samples, baseline_runs=baseline)
+    if as_json:
+        print(_json.dumps(report.to_dict(), indent=2))
+    else:
+        print(report.summary())
+        if report.flagged:
+            print("flagged indices:", report.flagged)
+    if fail_on_flag and report.flagged:
+        return 1
+    return 0
+
+
+def _load_user_module(path: str):
+    """Import a Python file and return its module (shared by `judge` and `run`)."""
+    import importlib.util
+    import os
+
+    if not os.path.isfile(path):
+        raise SystemExit(f"wobbly: file not found: {path}")
+    spec = importlib.util.spec_from_file_location("_wobbly_user_module", path)
+    if spec is None or spec.loader is None:
+        raise SystemExit(f"wobbly: could not import {path}")
+    mod = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(mod)
+    except Exception as e:
+        raise SystemExit(f"wobbly: error importing {path}: {e!r}")
+    return mod
 
 
 def _judge_cmd(path: Optional[str], samples: int, baseline: int, fail_on_flip: bool) -> int:
@@ -100,6 +135,15 @@ def main(argv: Optional[List[str]] = None) -> int:
     jp.add_argument("--fail-on-flip", action="store_true",
                     help="exit non-zero if any pair flips (for CI gating)")
 
+    rp = sub.add_parser("run", help="run check_batch over a dataset defined in a file")
+    rp.add_argument("file", help="Python file defining system(input), inputs=[...], relations=[...]")
+    rp.add_argument("--json", action="store_true", help="print machine-readable JSON")
+    rp.add_argument("--fail-on-flag", action="store_true",
+                    help="exit non-zero if any input is flagged (for CI gating)")
+    rp.add_argument("--samples", type=int, default=20, help="samples per randomized relation (default 20)")
+    rp.add_argument("--baseline", type=int, default=5,
+                    help="unperturbed runs for the baseline-variance control (default 5)")
+
     args = parser.parse_args(argv)
 
     if args.cmd == "version":
@@ -110,6 +154,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         return _demo()
     if args.cmd == "judge":
         return _judge_cmd(args.file, args.samples, args.baseline, args.fail_on_flip)
+    if args.cmd == "run":
+        return _run_cmd(args.file, args.json, args.fail_on_flag, args.samples, args.baseline)
     parser.print_help()
     return 2
 

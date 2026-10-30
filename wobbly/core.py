@@ -13,12 +13,29 @@ relations. For each relation it transforms the input, runs the system on both,
 and checks that the asserted relationship between the two outputs holds. When it
 doesn't, you've found a bug — without ever knowing the right answer.
 """
+import json
 from dataclasses import dataclass, field
 from typing import Any, Callable, List
 
 from .assertions import Assertion
 
 Transform = Callable[[Any], Any]
+
+
+def _jsonable(v: Any) -> Any:
+    """Best-effort JSON-safe value: keep JSON-native types, else fall back to
+    repr(). Never raises — system outputs can be arbitrary objects."""
+    if v is None or isinstance(v, (bool, int, float, str)):
+        return v
+    if isinstance(v, (list, tuple)):
+        return [_jsonable(x) for x in v]
+    if isinstance(v, dict):
+        return {str(k): _jsonable(x) for k, x in v.items()}
+    try:
+        json.dumps(v)
+        return v
+    except (TypeError, ValueError):
+        return repr(v)
 
 
 @dataclass(frozen=True)
@@ -84,6 +101,26 @@ class Report:
             if s.violations:
                 lines.append(f"  [{s.name}] violated {s.violations}/{s.trials} samples ({100*s.rate:.0f}%)")
         return "\n".join(lines)
+
+    def to_dict(self) -> dict:
+        """JSON-safe dict of this report (for CI logs / dashboards). Arbitrary
+        system outputs are kept if JSON-native, else rendered via repr()."""
+        return {
+            "subject": self.subject,
+            "broke": self.broke,
+            "trials": self.trials,
+            "relation_stats": [
+                {"name": s.name, "trials": s.trials, "violations": s.violations, "rate": s.rate}
+                for s in self.relation_stats
+            ],
+            "counterexamples": [
+                {"relation": c.relation, "before": _jsonable(c.before),
+                 "after": _jsonable(c.after), "detail": c.detail}
+                for c in self.counterexamples
+            ],
+            "baseline": [_jsonable(b) for b in self.baseline],
+            "errors": list(self.errors),
+        }
 
 
 def check(

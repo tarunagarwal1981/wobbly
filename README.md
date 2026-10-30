@@ -235,8 +235,30 @@ from wobbly import cached_system
 system = cached_system(lambda prompt: my_llm(prompt), max_calls=200)
 ```
 
+**Over a whole dataset** — `check_batch` runs `check` on every input and aggregates
+the flags (BLIND — labels never touched). Scoring those flags against ground truth
+is a separate, explicit `.audit(is_error)` call (the AUDIT stage), so the two-stage
+separation that makes the result trustworthy stays visible in the API:
+
+```python
+from wobbly import check_batch
+
+report = check_batch(system, inputs, relations)   # inputs = a list/iterable
+report.flag_rate                                   # fraction flagged
+report.summary()                                   # "flagged 13/535 (2.4%)"
+
+# AUDIT — opens labels only now, to score the blind flags:
+audit = report.audit(lambda inp, out: out != truth[inp["id"]])
+audit.enrichment                                   # P(err|flagged)/P(err|not) — the "2.7x"
+```
+
+This is exactly what the receipts experiment below does; `check_batch` + `.audit`
+reproduces the same 8.4× / 2.7× / 3.3× in two calls instead of a custom script.
+`report.to_dict()` is JSON for CI/dashboards.
+
 **CLI** — `wobbly judge <file>` measures position bias in a judge you define in a
-file (`--fail-on-flip` to gate CI); `wobbly demo` runs a self-contained order-bias
+file (`--fail-on-flip` to gate CI); `wobbly run <file>` runs `check_batch` over a
+dataset (`--json`, `--fail-on-flag`); `wobbly demo` runs a self-contained order-bias
 catch; `wobbly version` prints the version.
 
 
@@ -422,6 +444,7 @@ the technique easy to apply to your own extraction system.
 
 ## Changelog
 
+- **0.6.0** — `check_batch()` runs wobbly over a whole dataset and aggregates the flags (BLIND); `BatchReport.audit(is_error)` scores those flags against ground truth as an explicit AUDIT stage (reproduces the receipts 8.4×/2.7×/3.3× in two calls). Machine-readable `Report.to_dict()` / `BatchReport.to_dict()`, and a `wobbly run <file>` CLI (`--json`, `--fail-on-flag`) for CI pipelines.
 - **0.5.0** — `position_sweep()` for "lost in the middle": slide one item (a retrieved doc, an option) through every position while holding the rest in order, and flag if the output depends on where it sits — the label-free RAG position-bias test. Plus polish: `_resolve_pick` accepts a bare 0-based integer index; `live_check.py` prints a clean message on an auth error instead of a traceback; `length_bias` docstring documents that content-free filler means ~0 is the expected (good) result on capable models.
 - **0.4.0** — `wobbly judge <file>` CLI to measure position bias from the terminal (`--fail-on-flip` for CI); `length_bias()` + `length_invariant()` for verbosity/length bias (pad the losing answer with content-free filler and see if the verdict moves). Judge-reliability notes: report flipped pairs as a count, don't average contradictory verdicts into 0.5; and self-consistency under swap is not correctness — keep a few scored cases alongside.
 - **0.3.0** — `judge_bias()` for measuring position bias in your own LLM judge; `order_invariant(coverage="rotate")` Latin-square positional rotation (`"random"` remains the default).

@@ -205,8 +205,12 @@ def run_rag(call):
         docs = [c["key"]] + others[:max(1, N_DOCS - 1)]
         case = {"question": c["question"], "docs": docs}
 
-        def system(mc):
-            return _norm(call(_rag_prompt(mc)))
+        seen = []
+
+        def system(mc, _seen=seen):
+            a = _norm(call(_rag_prompt(mc)))
+            _seen.append(a)
+            return a
 
         rel = position_sweep(field="docs", pivot_match=lambda d, k=c["key"]: d == k,
                              assertion=consistent_pick())
@@ -218,19 +222,28 @@ def run_rag(call):
         base = rep.baseline[0] if rep.baseline else ""
         base_ok = _norm(c["answer"]) in base
         correct_base += 1 if base_ok else 0
-        rows.append((c["question"], base, rep.broke, s.violations, s.trials, base_ok))
+        distinct = sorted(set(seen))
+        rows.append((c["question"], base, rep.broke, s.violations, s.trials, base_ok, distinct))
 
     flipped = sum(1 for r in rows if r[2])
     print("== RAG position-sweep (slide the answer doc through every position) ==")
     print(f"{'question':48}  base answer      flip-rate   base-correct")
     print("-" * 92)
-    for q, base, broke, v, t, ok in rows:
+    for q, base, broke, v, t, ok, distinct in rows:
         rate = f"{v}/{t}" if t else "n/a"
         print(f"{q[:48]:48}  {str(base)[:14]:14}  {rate:>7}{'  FLIPS' if broke else '      '}   {'yes' if ok else 'NO'}")
     print("-" * 92)
     agg = 100 * viol / trials if trials else 0.0
     print(f"{flipped}/{len(CASES)} questions changed answer when the relevant doc moved | "
           f"aggregate {viol}/{trials} ({agg:.0f}%)")
+    # Honesty check: show the DISTINCT answers for flagged questions, so a real
+    # position flip ('three' -> '4') can be told apart from formatting noise
+    # ('3' vs 'three'). Decide by eye before trusting the flip-rate.
+    flaggers = [(q, d) for q, _b, broke, _v, _t, _ok, d in rows if broke]
+    if flaggers:
+        print("\nflagged questions — distinct answers seen (inspect: real flip vs formatting):")
+        for q, d in flaggers:
+            print(f"  {q[:52]:52}  {d}")
     print(f"base-position accuracy: {correct_base}/{len(CASES)} answered correctly with the doc in slot 0")
     print("(self-consistency measured with NO answer key; base-correct is a bonus check using the planted facts)")
 

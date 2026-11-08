@@ -182,10 +182,26 @@ def _capped(call, max_calls):
     return wrapped
 
 
+_NUMWORDS = {
+    "zero": "0", "one": "1", "two": "2", "three": "3", "four": "4", "five": "5",
+    "six": "6", "seven": "7", "eight": "8", "nine": "9", "ten": "10",
+    "eleven": "11", "twelve": "12", "thirteen": "13", "fourteen": "14",
+    "fifteen": "15", "sixteen": "16", "seventeen": "17", "eighteen": "18",
+    "nineteen": "19", "twenty": "20",
+}
+
+
 def _norm(s: str) -> str:
-    """Label-free normalization: collapse to alphanumerics so formatting noise
-    ('QX-9' vs 'QX 9') isn't mistaken for a different answer."""
-    return "".join(ch for ch in s.lower() if ch.isalnum())
+    """Label-free normalization of the system's OWN output, so formatting variance
+    isn't mistaken for a different answer: lowercase, map number words to digits
+    ('three' -> '3'), drop a leading article, then collapse to alphanumerics
+    ('QX-9' -> 'qx9'). This cancels the model's phrasing noise, not its meaning —
+    a genuinely different answer still reads as different. (For open free-text
+    answers, prefer semantic comparison, e.g. wobbly.equivalent(embed).)"""
+    toks = re.findall(r"[a-z0-9]+", s.lower())
+    toks = [t for t in toks if t not in ("the", "a", "an")]
+    toks = [_NUMWORDS.get(t, t) for t in toks]
+    return "".join(toks)
 
 
 def _rag_prompt(case) -> str:

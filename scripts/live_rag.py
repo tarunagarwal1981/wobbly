@@ -29,7 +29,32 @@ from wobbly import check, position_sweep, consistent_pick
 
 MODEL = os.environ.get("WOBBLY_MODEL", "claude-haiku-4-5-20251001")
 BASELINE = int(os.environ.get("WOBBLY_BASELINE", "4"))
-MAX_CALLS = int(os.environ.get("WOBBLY_MAX_CALLS", "2000"))
+MAX_CALLS = int(os.environ.get("WOBBLY_MAX_CALLS", "4000"))
+# "Lost in the middle" grows with context length. Pad each question's context to
+# N_DOCS with irrelevant filler so the answer-bearing doc is buried among many.
+N_DOCS = int(os.environ.get("WOBBLY_RAG_DOCS", "15"))
+
+# Generic filler: plausible world-building facts that answer NONE of the questions.
+FILLER = [
+    "The regional council meets on the first Monday of each quarter.",
+    "Annual rainfall in the district has been rising slowly for a decade.",
+    "The old tramline was decommissioned and replaced with electric buses.",
+    "A weekly farmers' market sets up in the central plaza on Saturdays.",
+    "The public library extended its evening hours last year.",
+    "Most rooftops in the quarter are fitted with solar panels now.",
+    "The river walk was repaved after the spring floods.",
+    "A new recycling depot opened near the industrial estate.",
+    "The symphony hall seats just under two thousand people.",
+    "Cycling lanes were added to three of the main avenues.",
+    "The botanical garden introduced a night-opening in summer.",
+    "Street festivals draw large crowds in the warmer months.",
+    "The ferry terminal added a covered waiting area.",
+    "A mural project brightened several underpasses downtown.",
+    "The observatory offers free public viewings twice a month.",
+    "The transit app now shows live arrival times.",
+    "A community orchard was planted on the eastern slope.",
+    "The clock tower was restored to mark the city's centenary.",
+]
 
 # Each case: an invented fact (so the answer must come from the docs), the
 # answer-bearing `key` document, and plausible distractors in the same world.
@@ -163,10 +188,13 @@ def run_rag(call):
     rows = []
     viol = trials = 0
     correct_base = 0
-    for c in CASES:
-        case = {"question": c["question"], "docs": [c["key"]] + c["distractors"]}
+    for ci, c in enumerate(CASES):
+        # build an N_DOCS context: the answer doc + its distractors + rotating filler
+        others = list(c["distractors"]) + FILLER[ci % len(FILLER):] + FILLER[:ci % len(FILLER)]
+        docs = [c["key"]] + others[:max(1, N_DOCS - 1)]
+        case = {"question": c["question"], "docs": docs}
 
-        def system(mc, _c=c):
+        def system(mc):
             return _norm(call(_rag_prompt(mc)))
 
         rel = position_sweep(field="docs", pivot_match=lambda d, k=c["key"]: d == k,

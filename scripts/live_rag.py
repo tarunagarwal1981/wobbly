@@ -54,6 +54,17 @@ FILLER = [
     "The transit app now shows live arrival times.",
     "A community orchard was planted on the eastern slope.",
     "The clock tower was restored to mark the city's centenary.",
+    "The aquarium added a touch pool for school groups.",
+    "A pedestrian bridge now links the two riverbanks.",
+    "The night market rotates vendors every other week.",
+    "The planetarium reopened after a long renovation.",
+    "A fleet of electric street sweepers was introduced.",
+    "The old grain silo became a climbing center.",
+    "Rooftop beekeeping is quietly catching on downtown.",
+    "The transit authority trialed a flat weekend fare.",
+    "A seed library opened inside the main branch.",
+    "The pier's arcade was refurbished over the winter.",
+    "Local buses switched to a contactless payment system.",
 ]
 
 # Each case: an invented fact (so the answer must come from the docs), the
